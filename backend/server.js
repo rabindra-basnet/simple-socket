@@ -1,8 +1,8 @@
-import express from 'express';
-import { Server } from 'socket.io';
-import http from 'http';
-import cors from 'cors';
-import crypto from 'crypto';
+import express from "express";
+import { Server } from "socket.io";
+import http from "http";
+import cors from "cors";
+import crypto from "crypto";
 
 const app = express();
 const server = http.createServer(app);
@@ -17,25 +17,25 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-const users = {};           // { username: { password, token } }
-const tokens = new Map();   // token -> username
+const users = {}; // { username: { password, token } }
+const tokens = new Map(); // token -> username
 
 // Simple login endpoint
-app.post('/login', (req, res) => {
+app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password)
-    return res.status(400).json({ error: 'Username and password required' });
+    return res.status(400).json({ error: "Username and password required" });
 
   // Generate or validate user
   if (!users[username]) {
     users[username] = { password };
   } else if (users[username].password !== password) {
-    return res.status(401).json({ error: 'Invalid password' });
+    return res.status(401).json({ error: "Invalid password" });
   }
 
   // Generate a fake token (you can use real JWT in prod)
-  const token = crypto.randomBytes(24).toString('hex');
+  const token = crypto.randomBytes(24).toString("hex");
   users[username].token = token;
   tokens.set(token, username);
 
@@ -43,20 +43,20 @@ app.post('/login', (req, res) => {
 });
 
 // Registration endpoint
-app.post('/register', (req, res) => {
+app.post("/register", (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password)
-    return res.status(400).json({ error: 'Username and password required' });
+    return res.status(400).json({ error: "Username and password required" });
 
   if (users[username]) {
-    return res.status(409).json({ error: 'Username already exists' });
+    return res.status(409).json({ error: "Username already exists" });
   }
 
   // Save user in memory
   users[username] = { password };
 
-  return res.status(201).json({ message: 'User registered successfully' });
+  return res.status(201).json({ message: "User registered successfully" });
 });
 
 // Socket.IO with auth
@@ -71,12 +71,23 @@ io.use((socket, next) => {
   next();
 });
 
-io.on('connection', (socket) => {
+io.on("connection", (socket) => {
   console.log(`🔐 ${socket.username} connected with socket ID ${socket.id}`);
 
   socket.on("JOIN_ROOM", (roomName) => {
     socket.join(roomName);
     console.log(`${socket.username} joined room: ${roomName}`);
+  });
+
+  socket.on("JOIN_ROOM", (roomId) => {
+    socket.join(roomId);
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
+  });
+
+  socket.on("LEAVE_ROOM", (room) => {
+    socket.leave(room);
+    socket.emit("ROOM_LEFT");
+    console.log(`${socket.username} left room ${room}`);
   });
 
   socket.on("SEND_MESSAGE", ({ room, message }) => {
@@ -87,7 +98,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     console.log(`❌ ${socket.username} disconnected`);
   });
 });
